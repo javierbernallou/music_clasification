@@ -10,8 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
-
-import re
+from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="Music Analysis", layout="wide")
 
@@ -26,13 +25,6 @@ st.write("""
 st.markdown(
     """
 La idea principal es responder una pregunta simple: **¿Spotify puede describir canciones parecidas con unas pocas dimensiones?**  
-Para eso el flujo va de lo descriptivo a lo interpretativo:
-
-1. inspección y limpieza,
-2. distribución y correlación de variables,
-3. escalado y reducción de dimensionalidad,
-4. lectura de componentes principales,
-5. visualización de canciones y géneros en el espacio PCA.
 """
 )
 
@@ -115,7 +107,7 @@ st.pyplot(fig, clear_figure=True)
 df_genero_top_10=df.groupby("track_genre")["danceability"].mean().reset_index()
 df_genero_top_10=df_genero_top_10.nlargest(10,"danceability")
 st.header("2) Distribución de las variables acústicas")
-fig, ax = plt.subplots(figsize=(14,10))
+fig, ax = plt.subplots(figsize=(10,8))
 sns.barplot(x="track_genre",y="danceability" , data= df_genero_top_10)
 ax.set_title("Generos con más características para bailar")
 st.pyplot(fig, clear_figure=True)
@@ -127,15 +119,15 @@ st.header("3) Relación entre variables")
 corr_cols = [c for c in numeric_cols if c in df.columns]
 if corr_cols:
     corr = df[corr_cols].corr()
-    fig, ax = plt.subplots(figsize=(14, 10))
+    fig, ax = plt.subplots(figsize=(10, 8))
     sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax)
     ax.set_title("Variable Correlation Matrix")
     st.pyplot(fig, clear_figure=True)
 
     st.markdown(
         """
-Este mapa ayuda a leer qué variables se mueven juntas. Por ejemplo, `energy` y `loudness` suelen ir de la mano, mientras que `acousticness` tiende a separarse de las canciones más intensas.  
-La lógica del EDA aquí es buscar redundancias: si dos variables cuentan casi la misma historia, PCA puede resumirlas.
+Esta matriz nos muestra la relación que hay entre todas la variables creadas. Esto ayuda a leer qué variables se mueven juntas. Por ejemplo, `energy` y `loudness` suelen ir de la mano, mientras que `acousticness` tiende a separarse de las canciones más intensas.  
+La lógica del EDA aquí es buscar redundancias: si dos variables cuentan casi la misma historia, reducir su dimensionalidad.
         """
     )
 
@@ -182,7 +174,7 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
         except Exception:
             silhouettes.append(np.nan)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(5, 3))
     ax.plot(list(K), inertias, "r-*")
     ax.set_xlabel("K")
     ax.set_ylabel("Inertia")
@@ -193,7 +185,7 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
     ax.spines["top"].set_visible(False)
     st.pyplot(fig, clear_figure=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(5, 3))
     ax.plot(list(K), silhouettes, "b-*")
     ax.set_xlabel("K")
     ax.set_ylabel("Silhouette scores")
@@ -259,22 +251,7 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
         f"Varianza explicada acumulada: {pca_fit.explained_variance_ratio_.sum():.4f}"
     )
 
-    st.markdown(
-        """
-- PC1: Energía e intensidad sonora
-- PC2: Bailabilidad y positividad
-- PC3: Tonalidad y modo
-- PC4: Directo/hablado vs. grabado en estudio
-- PC5: Ritmo e instrumentalidad
-- PC6: Popularidad y presencia vocal
-- PC7: Compás y estructura musical
-- PC8: Configuración tonal
-- PC9: Duración
-- PC10: Instrumentalidad
-- PC11: Estado de ánimo positivo
-- PC12: Bailabilidad vs. valencia emocional  
-"""
-    )
+
 
     explained = pd.DataFrame(
         pca_fit.explained_variance_ratio_,
@@ -301,63 +278,77 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
     plt.tight_layout()
     st.pyplot(fig, clear_figure=True)
 
+    st.markdown(
+        """
+- PC1: Energía e intensidad sonora
+- PC2: Bailabilidad y positividad
+- PC3: Tonalidad y modo
+- PC4: Directo/hablado vs. grabado en estudio
+- PC5: Ritmo e instrumentalidad
+- PC6: Popularidad y presencia vocal
+- PC7: Compás y estructura musical
+- PC8: Configuración tonal
+- PC9: Duración
+- PC10: Instrumentalidad
+- PC11: Estado de ánimo positivo
+- PC12: Bailabilidad vs. valencia emocional  
+"""
+    )
 
 
 
+    # # Artist comparison
+    # st.subheader("9) Comparación entre artistas")
+    # all_artists = sorted(df["artists"].dropna().astype(str).unique())
+    # individal_artists= set()
+    # for e in all_artists:
+    #     for a in e.split(";"):
+    #         cleaned = a.strip()
+    #         if cleaned:
+    #             individal_artists.add(cleaned)
 
-    # Artist comparison
-    st.subheader("9) Comparación entre artistas")
-    all_artists = sorted(df["artists"].dropna().astype(str).unique())
-    individal_artists= set()
-    for e in all_artists:
-        for a in e.split(";"):
-            cleaned = a.strip()
-            if cleaned:
-                individal_artists.add(cleaned)
+    # artists_available= sorted(list(individal_artists))
 
-    artists_available= sorted(list(individal_artists))
-
-    if artists_available:
-        c1, c2 = st.columns(2)
-        p1,p2,p3 = st.columns(3)
-        with c1:
-            a1 = st.selectbox("Artista 1", artists_available, index=0)
-        with c2:
-            a2 = st.selectbox("Artista 2", artists_available, index=min(1, len(artists_available)-1))
-        with p1:
-            p1 = st.selectbox("Componente 1", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
-        with p2:
-            p2 = st.selectbox("Componente 2", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
-        with p3:
-            p3 = st.selectbox("Componente 3", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
+    # if artists_available:
+    #     c1, c2 = st.columns(2)
+    #     p1,p2,p3 = st.columns(3)
+    #     with c1:
+    #         a1 = st.selectbox("Artista 1", artists_available, index=0)
+    #     with c2:
+    #         a2 = st.selectbox("Artista 2", artists_available, index=min(1, len(artists_available)-1))
+    #     with p1:
+    #         p1 = st.selectbox("Componente 1", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
+    #     with p2:
+    #         p2 = st.selectbox("Componente 2", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
+    #     with p3:
+    #         p3 = st.selectbox("Componente 3", ["PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12" ], index=min(1, 12))
 
 
-        df_pca_pro = pd.DataFrame(X_pca, columns= [f"PC{i}" for i in range(1,X_pca.shape[1]+1)], index = df_scaled.index)
+    #     df_pca_pro = pd.DataFrame(X_pca, columns= [f"PC{i}" for i in range(1,X_pca.shape[1]+1)], index = df_scaled.index)
 
-        df_compare = pd.concat([df_pca_pro, df[["artists", "track_name", "track_genre"]].astype(str)], axis=1)
+    #     df_compare = pd.concat([df_pca_pro, df[["artists", "track_name", "track_genre"]].astype(str)], axis=1)
 
-        pattern = f"(?:^|;)\\s*({re.escape(a1)}|{re.escape(a2)})\\s*(?:;|$)"
-        filtro = df_compare["artists"].str.extract(pattern)
-        df_filtrada = df_compare[filtro].copy()
+    #     pattern = f"(?:^|;)\\s*({re.escape(a1)}|{re.escape(a2)})\\s*(?:;|$)"
+    #     filtro = df_compare["artists"].str.extract(pattern)
+    #     df_filtrada = df_compare[filtro].copy()
 
-        ####REVISAR Y DECIDIR QUE HACER !!!!! PARA GRÁFICO 3D TE QUEDAS CON EL PCA DE 3 O ELIGES 3 VARIABLES PARA SOBRE LAS QUE MOSTRARLO,
-        #CONSIDERO QUE LO MEJOR ES QUE LAS VARIABLES(PCAs SOBRE LAS QUE FUERA EL GRÁFICO LAS DECIDIERA EL USUARIO SERIA ÑLO MEJOR
+    #     ####REVISAR Y DECIDIR QUE HACER !!!!! PARA GRÁFICO 3D TE QUEDAS CON EL PCA DE 3 O ELIGES 3 VARIABLES PARA SOBRE LAS QUE MOSTRARLO,
+    #     #CONSIDERO QUE LO MEJOR ES QUE LAS VARIABLES(PCAs SOBRE LAS QUE FUERA EL GRÁFICO LAS DECIDIERA EL USUARIO SERIA ÑLO MEJOR
         
-        if not df_compare.empty:
-            fig = px.scatter_3d(
-                df_compare,
-                x=p1, y=p2, z=p3,
-                color="artists",
-                hover_data=[df_compare["track_genre"], df_compare["track_name"]],
-                title=f"Comparación en PCA 3D: {a1} vs {a2}"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para comparar esos artistas en la muestra actual.")
+    #     if not df_compare.empty:
+    #         fig = px.scatter_3d(
+    #             df_compare,
+    #             x=p1, y=p2, z=p3,
+    #             color="artists",
+    #             hover_data=[df_compare["track_genre"], df_compare["track_name"]],
+    #             title=f"Comparación en PCA 3D: {a1} vs {a2}"
+    #         )
+    #         st.plotly_chart(fig, use_container_width=True)
+    #     else:
+    #         st.info("No hay datos suficientes para comparar esos artistas en la muestra actual.")
 
     # Genre averages
     if "track_genre" in df.columns:
-        st.subheader("10) Géneros con mayor media en PC1 y PC2")
         pca_with_genre = pd.concat([pd.DataFrame(X_pca, columns=[f"PC{i}" for i in range(1, X_pca.shape[1] + 1)], index=df.index),
                                     df[["track_genre"]].astype(str)], axis=1)
 
@@ -365,6 +356,10 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
 
         # Final polar plot with dropdown
         st.subheader("11) Perfil radial por género")
+        st.markdown("""
+        En la siguiente gráfica, se puede ver como están distribuidos los diferentes géneros músicales sobre las diferentes cualidades definidas en cada componente principal:
+
+        """)
         numeric_for_polar = list(pca_with_genre.select_dtypes(include="number").columns)
         chosen_genre = st.selectbox("Elige un género para el gráfico radial", sorted(df["track_genre"].dropna().astype(str).unique()))
 
@@ -382,12 +377,35 @@ Si la primera componente concentra energía y volumen, y otra recoge bailabilida
         else:
             st.info("No hay filas para ese género en la muestra actual.")
 
-        st.markdown(
-            """
-El gráfico radial es el cierre más intuitivo: muestra cada género como una firma acústica promedio.  
-Si dos polígonos se parecen, sus canciones comparten rasgos; si se separan mucho, su sonido medio es distinto.  
-Ese es el objetivo final del EDA: pasar de números sueltos a una lectura musical de similitud.
-"""
-        )
-else:
-    st.warning("No hay suficientes columnas numéricas para ejecutar PCA.")
+
+        st.subheader("12) ¿Podemos definir matemáticamente que dos canciones son parecidas?")
+        st.markdown("""
+        A continuacion, vamos a comprobar, si dos canciones, que se situan cerca en el espacio que hemos creado de componentes principales, son parecidas.        
+""")
+        st.markdown("""
+                Para ello, usaremos el método llamado similitud por coseno, este lo que hace es comprobar qie tan parecidos son dos vectores (en este caso canciones), al observar el ángulo 
+                entre estos        
+        """)
+
+
+
+    df_pca_pro = pd.DataFrame(X_pca, columns= [f"PC{i}" for i in range(1,X_pca.shape[1]+1)], index = df_scaled.index)
+    columnas_pc = [f"PC{i}" for i in range(1, X_pca.shape[1] + 1)]
+    df_compare = pd.concat([df_pca_pro, df[["artists", "track_name", "track_genre"]].astype(str)], axis=1)
+    df_filtrada = df_compare[(df_compare["track_name"] == "I Won't Back Down") | (df_compare["track_name"] == "Stay With Me")]
+    matriz_numerica= df_filtrada[columnas_pc].values.astype(float)
+    matriz_coseon = cosine_similarity(matriz_numerica)
+
+    nombres_canciones = df_filtrada["track_name"].tolist()
+
+    df_similitud = pd.DataFrame(matriz_coseon, index = nombres_canciones, columns=nombres_canciones)
+    print(df_similitud)
+    st.dataframe(f"{df_similitud}")
+
+    fig = px.scatter_3d(
+        df_similitud,
+        x="PC1", y="PC2", z="PC3",
+        color="track_genre",
+        hover_data=[df_similitud["track_name"]],
+        title="Canciones proyectadas en los tres componentes")
+    st.plotly_chart(fig, use_container_width=True)
