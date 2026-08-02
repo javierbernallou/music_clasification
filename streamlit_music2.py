@@ -14,10 +14,8 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
-from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix
+from sklearn.neighbors import  NearestNeighbors
+
 
 
 st.set_page_config(page_title="Music Similarity Analysis", layout="wide")
@@ -646,6 +644,13 @@ if chosen_label:
 
 
 st.header("16) Motor de recomendación: canciones similares por Nearest Neighbors")
+st.markdown("""
+Tras comprobar cómo la similitud del coseno permite medir el parecido entre canciones en el espacio generado por el PCA, el siguiente paso consiste en utilizar un algoritmo
+ diseñado específicamente para realizar este tipo de búsquedas de forma eficiente: Nearest Neighbors. Mientras que en el apartado anterior se calculaba la similitud entre 
+ la canción seleccionada y todas las demás para ordenarlas posteriormente, este algoritmo indexa previamente el conjunto de datos y devuelve directamente las canciones más próximas 
+ según la métrica elegida. En este caso se mantiene la distancia del coseno como criterio de comparación, por lo que el concepto de similitud no cambia; 
+ únicamente cambia la estrategia utilizada para localizar las canciones más parecidas, ofreciendo una solución más escalable cuando el número de canciones aumenta.
+""")
 
 X = df_pca_full[pc_cols].values
 nn = NearestNeighbors(n_neighbors=(top_n + 1), metric="cosine")

@@ -4,6 +4,8 @@ Aplicación interactiva en **Streamlit** que analiza un dataset de canciones de 
 
 El proyecto recorre el pipeline completo de un problema real de reducción de dimensionalidad y sistemas de recomendación por contenido: desde la exploración de datos hasta un motor de recomendación funcional basado en similitud de coseno y el sistema de Nearest Neighbors.
 
+Consulta mi proyecto en: [https://musicclasification.streamlit.app/](https://musicclasification.streamlit.app/)
+
 ## Motivación
 
 Spotify describe cada canción con ~15 variables numéricas (energía, bailabilidad, tonalidad, tempo, valencia, acústica, etc.). Son demasiadas para comparar canciones de forma directa, y muchas están correlacionadas entre sí. Este proyecto resuelve ese problema en cuatro pasos:
@@ -46,19 +48,17 @@ Cada fila representa una canción etiquetada con un género (una misma canción 
 
 ## Cómo ejecutarlo
 
+
 ```bash
 # Clona el repositorio
 git clone https://github.com/<tu-usuario>/<tu-repo>.git
 cd <tu-repo>
 
-# Crea un entorno virtual (opcional pero recomendado)
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source venv/bin/activate  
 
-# Instala las dependencias
 pip install -r requirements.txt
 
-# Lanza la app
 streamlit run streamlit_music2.py
 ```
 
@@ -66,10 +66,5 @@ Si no subes un CSV propio desde la barra lateral, la app usará `dataset.csv` si
 
 ## Próximos pasos
 
-- [ ] Añadir validación con **UMAP** como técnica de reducción alternativa para contrastar con PCA.
 - [ ] Entrenar un clasificador (`KNeighborsClassifier`) que prediga el género a partir de las componentes principales, con `classification_report` y matriz de confusión.
-- [ ] Comparar los clusters de KMeans contra los géneros reales (Adjusted Rand Index).
-- [ ] Separar el código en módulos (carga de datos, pipeline de PCA, motor de recomendación, capa de presentación).
-- [ ] Añadir tests unitarios sobre las funciones puras del pipeline.
-- [ ] Desplegar la app en Streamlit Community Cloud.
 
