@@ -1,0 +1,75 @@
+# Music EDA & Similarity Engine
+
+Aplicación interactiva en **Streamlit** que analiza un dataset de canciones de Spotify (15 características de audio por canción) y responde a una pregunta concreta: **dada una canción, ¿cuáles se le parecen más?**
+
+El proyecto recorre el pipeline completo de un problema real de reducción de dimensionalidad y sistemas de recomendación por contenido: desde la exploración de datos hasta un motor de recomendación funcional basado en similitud de coseno y el sistema de Nearest Neighbors.
+
+## Motivación
+
+Spotify describe cada canción con ~15 variables numéricas (energía, bailabilidad, tonalidad, tempo, valencia, acústica, etc.). Son demasiadas para comparar canciones de forma directa, y muchas están correlacionadas entre sí. Este proyecto resuelve ese problema en cuatro pasos:
+
+1. **Exploración (EDA):** entender la calidad y distribución de los datos.
+2. **Reducción de dimensionalidad (PCA):** comprimir las variables originales en un puñado de componentes principales que conservan la mayor parte de la información.
+3. **Validación visual:** comprobar con gráficos 3D y perfiles radiales que esa compresión conserva la estructura real de los datos (géneros, artistas...).
+4. **Motor de similitud:** usar **similitud de coseno** y **Nearest Neighbors** sobre el espacio reducido para construir un recomendador tipo "Radio" / "Fans también escuchan".
+
+## Funcionalidades
+
+- Carga de dataset propio (CSV) o uso del dataset por defecto incluido.
+- Filtro de géneros musicales que afecta a toda la aplicación en tiempo real.
+- Limpieza y deduplicación automática de canciones.
+- Visualización de distribuciones (popularidad, bailabilidad) por género.
+- Matriz de correlación entre variables acústicas.
+- Escalado de variables con `StandardScaler`.
+- Selección del número óptimo de clusters (método del codo + coeficiente de silueta).
+- **PCA** con interpretación automática de cada componente (variables con más peso y signo).
+- Análisis del trade-off varianza explicada vs. número de componentes (80/85/90/95%).
+- Mapa 3D interactivo de canciones proyectadas por género.
+- Perfil radial medio por género y comparación artista vs. género.
+- Comparación 3D entre dos artistas en el espacio PCA.
+- **Motor de recomendación** de canciones similares vía:
+  - Similitud de coseno.
+  - `NearestNeighbors`.
+
+
+## Estructura del dataset
+
+El CSV debe contener (al menos) las siguientes columnas:
+
+```
+track_name, artists, track_genre, popularity, duration_ms, explicit,
+danceability, energy, key, loudness, mode, speechiness, acousticness,
+instrumentalness, liveness, valence, tempo, time_signature
+```
+
+Cada fila representa una canción etiquetada con un género (una misma canción puede aparecer varias veces si Spotify la asocia a más de un género).
+
+## Cómo ejecutarlo
+
+```bash
+# Clona el repositorio
+git clone https://github.com/<tu-usuario>/<tu-repo>.git
+cd <tu-repo>
+
+# Crea un entorno virtual (opcional pero recomendado)
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+
+# Instala las dependencias
+pip install -r requirements.txt
+
+# Lanza la app
+streamlit run streamlit_music2.py
+```
+
+Si no subes un CSV propio desde la barra lateral, la app usará `dataset.csv` situado en el mismo directorio.
+
+## Próximos pasos
+
+- [ ] Añadir validación con **UMAP** como técnica de reducción alternativa para contrastar con PCA.
+- [ ] Entrenar un clasificador (`KNeighborsClassifier`) que prediga el género a partir de las componentes principales, con `classification_report` y matriz de confusión.
+- [ ] Comparar los clusters de KMeans contra los géneros reales (Adjusted Rand Index).
+- [ ] Separar el código en módulos (carga de datos, pipeline de PCA, motor de recomendación, capa de presentación).
+- [ ] Añadir tests unitarios sobre las funciones puras del pipeline.
+- [ ] Desplegar la app en Streamlit Community Cloud.
+

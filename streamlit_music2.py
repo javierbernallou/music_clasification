@@ -13,6 +13,11 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
 
 
 st.set_page_config(page_title="Music Similarity Analysis", layout="wide")
@@ -33,9 +38,7 @@ tiene mucho *loudness*, por ejemplo). Este proyecto resuelve ese problema en cua
 1. **Exploración (EDA):** entender la calidad y distribución de los datos.
 2. **Reducción de dimensionalidad (PCA):** comprimir las 15 variables originales en un puñado de
    "super-variables" (componentes principales) que conservan la mayor parte de la información.
-3. **Validación:** comprobar, con gráficas y con una técnica de reducción alternativa (UMAP), que esa
-   compresión conserva de verdad la estructura real de los datos (géneros, artistas...).
-4. **Motor de similitud:** una vez las canciones viven en ese espacio reducido, usar **similitud de
+3. **Motor de similitud:** una vez las canciones viven en ese espacio reducido, usar **similitud de
    coseno** para responder la pregunta de negocio real: *dada una canción, ¿cuáles se le parecen más?*
    Esta es, en esencia, la lógica detrás de un sistema de recomendación tipo "Radio" o "Fans también
    escuchan".
@@ -69,6 +72,8 @@ if "Unnamed: 0" in df.columns:
 
 n_before = len(df)
 df = df.dropna().copy()
+
+
 n_after = len(df)
 
 st.header("1) Panorama general del dataset")
@@ -120,6 +125,8 @@ if all_genres:
 if df.empty:
     st.warning("No quedan canciones tras aplicar el filtro de géneros. Selecciona al menos un género.")
     st.stop()
+
+df = df.drop_duplicates(subset=["track_name", "artists"], keep="first").reset_index(drop=True)#ELIMINAMOS CANCIONES DUPLICADAS CON DIFERENTES GÉNEROS
 
 
 st.header("3) Distribución de las variables acústicas")
@@ -592,7 +599,7 @@ else:
 st.header("15) Motor de recomendación: canciones similares por similitud de coseno")
 st.markdown(
     """
-A continuación, a partir de una cancion dada por el usuario, se mostrarán canciones que son similares en el espacio que hemos creado. Esto se hará mediante la **similitud del coseon**.
+A continuación, a partir de una cancion dada por el usuario, se mostrarán canciones que son similares en el espacio que hemos creado. Esto se hará mediante la **similitud del coseno**.
 Esto, lo que hace es definir que tan parecidos son dos vectores (en este caso canciones), al observar el ángulo entre estos.
 """
 )
@@ -614,10 +621,13 @@ if chosen_label:
 
     result_df = df_pca_full[["track_name", "artists", "track_genre"]].copy()
     result_df["similitud"] = similarities
-    result_df = result_df.drop(index=chosen_idx).sort_values("similitud", ascending=False).head(top_n)
+    result_df["song_label"] = result_df["track_name"] + " — " + result_df["artists"]
+    result_df = result_df[result_df["song_label"] != chosen_label].copy()
+    result_df = result_df.sort_values("similitud", ascending=False).head(top_n)
+    final_df = result_df[["track_name", "artists", "track_genre", "similitud"]].copy()
 
     st.dataframe(
-        result_df.style.format({"similitud": "{:.3f}"}).background_gradient(subset=["similitud"], cmap="Greens"),
+        final_df.style.format({"similitud": "{:.3f}"}).background_gradient(subset=["similitud"], cmap="Greens"),
         width="stretch"
     )
 
@@ -635,7 +645,25 @@ if chosen_label:
     st.plotly_chart(fig, width="stretch")
 
 
-st.header("16) Conclusiones y cómo continuar")
+st.header("16) Motor de recomendación: canciones similares por Nearest Neighbors")
+
+X = df_pca_full[pc_cols].values
+nn = NearestNeighbors(n_neighbors=(top_n + 1), metric="cosine")
+nn.fit(X)
+
+distancias, indices = nn.kneighbors(X[chosen_idx].reshape(1, -1))
+
+recomendaciones_nn = df_pca_full.iloc[indices.flatten()][["track_name", "artists", "track_genre"]].copy()
+recomendaciones_nn["similitud"] = 1 -distancias[0]
+recomendaciones_nn = recomendaciones_nn[recomendaciones_nn.index != chosen_idx].head(top_n)
+recomendaciones_nn = recomendaciones_nn.sort_values("similitud", ascending=False)
+st.dataframe(
+        recomendaciones_nn.style.format({"similitud": "{:.3f}"}).background_gradient(subset=["similitud"], cmap="Greens"),
+        width="stretch"
+    )
+
+
+st.header("17) Conclusiones y cómo continuar")
 st.markdown(
     f"""
 **Lo que confirma este proyecto:**
